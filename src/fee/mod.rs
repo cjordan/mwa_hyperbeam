@@ -11,7 +11,7 @@ mod types;
 use std::f64::consts::{FRAC_PI_2, TAU};
 use std::sync::Mutex;
 
-use mwa_rust_core::{c64, Jones};
+use mwa_rust_core::{c64, AzEl, Jones};
 use ndarray::{Array1, Array2};
 use rayon::prelude::*;
 
@@ -387,7 +387,10 @@ impl FEEBeam {
         Ok(freq)
     }
 
-    /// Calculate the Jones matrix for a given direction and pointing.
+    /// Calculate the Jones matrix for a given direction and pointing. This
+    /// matches the original specification of the FEE beam code (hence "eng", or
+    /// "engineering"). Astronomers more likely want the `calc_jones` method
+    /// instead.
     ///
     /// `delays` and `amps` apply to each dipole in an MWA tile in the M&C
     /// order; see
@@ -395,7 +398,7 @@ impl FEEBeam {
     /// `delays` *must* have 16 elements, whereas `amps` can have 16 or 32
     /// elements; if 16 are given, then these map 1:1 with dipoles, otherwise
     /// the first 16 are for X dipole elements, and the next 16 are for Y.
-    pub fn calc_jones(
+    pub fn calc_jones_eng(
         &self,
         az_rad: f64,
         za_rad: f64,
@@ -444,9 +447,12 @@ impl FEEBeam {
         Ok(jones)
     }
 
-    /// Calculate the Jones matrices for many directions given a pointing.
+    /// Calculate the Jones matrices for many directions given a pointing. This
+    /// matches the original specification of the FEE beam code (hence "eng", or
+    /// "engineering"). Astronomers more likely want the `calc_jones_array`
+    /// method instead.
     ///
-    /// This is basically a wrapper around `calc_jones`; this function
+    /// This is basically a wrapper around `calc_jones_eng`; this function
     /// calculates the Jones matrices in parallel.
     ///
     /// `delays` and `amps` apply to each dipole in an MWA tile in the M&C
@@ -455,7 +461,7 @@ impl FEEBeam {
     /// `delays` *must* have 16 elements, whereas `amps` can have 16 or 32
     /// elements; if 16 are given, then these map 1:1 with dipoles, otherwise
     /// the first 16 are for X dipole elements, and the next 16 are for Y.
-    pub fn calc_jones_array(
+    pub fn calc_jones_eng_array(
         &self,
         az_rad: &[f64],
         za_rad: &[f64],
@@ -508,6 +514,81 @@ impl FEEBeam {
             .map(|(&az, &za)| calc_jones_direct(az, za, &coeffs, norm.as_deref()))
             .collect_into_vec(&mut out);
         Ok(Array1::from(out))
+    }
+
+    /// Calculate the Jones matrix for a given direction and pointing. Compared
+    /// to the original specification of the FEE beam code, this method has
+    /// re-defined the X and Y polarisations and applys a parallactic-angle
+    /// correction; see Jack's thorough investigation at
+    /// <https://github.com/JLBLine/polarisation_tests_for_FEE>.
+    ///
+    /// `delays` and `amps` apply to each dipole in an MWA tile in the M&C
+    /// order; see
+    /// <https://wiki.mwatelescope.org/pages/viewpage.action?pageId=48005139>.
+    /// `delays` *must* have 16 elements, whereas `amps` can have 16 or 32
+    /// elements; if 16 are given, then these map 1:1 with dipoles, otherwise
+    /// the first 16 are for X dipole elements, and the next 16 are for Y.
+    pub fn calc_jones(
+        &self,
+        az_rad: f64,
+        za_rad: f64,
+        freq_hz: u32,
+        delays: &[u32],
+        amps: &[f64],
+        norm_to_zenith: bool,
+    ) -> Result<Jones<f64>, FEEBeamError> {
+        let j = self.calc_jones_eng(az_rad, za_rad, freq_hz, delays, amps, norm_to_zenith)?;
+
+        // Re-order the polarisations.
+        let j = [-j[3], j[2], -j[1], j[0]];
+        // Parallactic-angle correction.
+        let para_angle = AzEl::new(az_rad, FRAC_PI_2 - za_rad)
+            .to_hadec_mwa()
+            .get_parallactic_angle_mwa();
+        let (s_rot, c_rot) = (para_angle + FRAC_PI_2).sin_cos();
+        let j = Jones::from([
+            j[0] * c_rot - j[1] * s_rot,
+            j[0] * s_rot + j[1] * c_rot,
+            j[2] * c_rot - j[3] * s_rot,
+            j[2] * s_rot + j[3] * c_rot,
+        ]);
+        Ok(j)
+    }
+
+    /// Calculate the Jones matrices for many directions given a pointing.
+    /// Compared to the original specification of the FEE beam code, this method
+    /// has re-defined the X and Y polarisations and applys a parallactic-angle
+    /// correction; see Jack's thorough investigation at
+    /// <https://github.com/JLBLine/polarisation_tests_for_FEE>.
+    ///
+    /// This is basically a wrapper around `calc_jones`; this function
+    /// calculates the Jones matrices in parallel.
+    ///
+    /// `delays` and `amps` apply to each dipole in an MWA tile in the M&C
+    /// order; see
+    /// <https://wiki.mwatelescope.org/pages/viewpage.action?pageId=48005139>.
+    /// `delays` *must* have 16 elements, whereas `amps` can have 16 or 32
+    /// elements; if 16 are given, then these map 1:1 with dipoles, otherwise
+    /// the first 16 are for X dipole elements, and the next 16 are for Y.
+    pub fn calc_jones_array(
+        &self,
+        az_rad: &[f64],
+        za_rad: &[f64],
+        freq_hz: u32,
+        delays: &[u32],
+        amps: &[f64],
+        norm_to_zenith: bool,
+    ) -> Result<Array1<Jones<f64>>, FEEBeamError> {
+        // TODO: Write the code out so less copying is needed.
+        let mut out = Vec::with_capacity(az_rad.len());
+        az_rad
+            .par_iter()
+            .zip(za_rad.par_iter())
+            .map(|(&az, &za)| self.calc_jones(az, za, freq_hz, delays, amps, norm_to_zenith))
+            .collect_into_vec(&mut out);
+        Ok(Array1::from(
+            out.into_iter().collect::<Result<Vec<_>, _>>()?,
+        ))
     }
 
     /// Empty the cached dipole coefficients and normalisation Jones matrices to
@@ -1095,9 +1176,9 @@ mod tests {
 
     #[test]
     #[serial]
-    fn test_calc_jones() {
+    fn test_calc_jones_eng() {
         let beam = FEEBeam::new("mwa_full_embedded_element_pattern.h5").unwrap();
-        let jones = match beam.calc_jones(
+        let jones = match beam.calc_jones_eng(
             45.0_f64.to_radians(),
             10.0_f64.to_radians(),
             51200000,
@@ -1120,9 +1201,9 @@ mod tests {
 
     #[test]
     #[serial]
-    fn test_calc_jones2() {
+    fn test_calc_jones_eng_2() {
         let beam = FEEBeam::new("mwa_full_embedded_element_pattern.h5").unwrap();
-        let jones = match beam.calc_jones(
+        let jones = match beam.calc_jones_eng(
             70.0_f64.to_radians(),
             10.0_f64.to_radians(),
             51200000,
@@ -1147,12 +1228,13 @@ mod tests {
 
     #[test]
     #[serial]
-    fn test_calc_jones_norm() {
+    fn test_calc_jones_eng_norm() {
         let beam = FEEBeam::new("mwa_full_embedded_element_pattern.h5").unwrap();
-        let jones = match beam.calc_jones(0.1_f64, 0.1_f64, 150000000, &[0; 16], &[1.0; 16], true) {
-            Ok(j) => Array1::from(j.to_vec()),
-            Err(e) => panic!("{}", e),
-        };
+        let jones =
+            match beam.calc_jones_eng(0.1_f64, 0.1_f64, 150000000, &[0; 16], &[1.0; 16], true) {
+                Ok(j) => Array1::from(j.to_vec()),
+                Err(e) => panic!("{}", e),
+            };
 
         let expected = array![
             c64::new(0.0887949, 0.0220569),
@@ -1165,9 +1247,9 @@ mod tests {
 
     #[test]
     #[serial]
-    fn test_calc_jones_norm2() {
+    fn test_calc_jones_eng_norm_2() {
         let beam = FEEBeam::new("mwa_full_embedded_element_pattern.h5").unwrap();
-        let jones = match beam.calc_jones(
+        let jones = match beam.calc_jones_eng(
             0.1_f64,
             0.1_f64,
             150000000,

@@ -6,7 +6,7 @@
 
 use mwa_rust_core::c64;
 
-/// Beamformer delay step [seconds]
+/// Beamformer delay step \[seconds\]
 pub(crate) const DELAY_STEP: f64 = 435.0e-12;
 /// The number of dipoles per MWA tile.
 pub(crate) const NUM_DIPOLES: u8 = 16;
