@@ -608,7 +608,7 @@ fn calc_sigmas(phi: f64, theta: f64, coeffs: &PolCoefficients) -> (c64, c64) {
     let mut sigma_p = c64::new(0.0, 0.0);
     let mut sigma_t = c64::new(0.0, 0.0);
     // Use an iterator for maximum performance.
-    for ((((((m, n), sign), q1), q2), p1sin), p1) in coeffs
+    coeffs
         .m_accum
         .iter()
         .zip(coeffs.n_accum.iter())
@@ -617,24 +617,28 @@ fn calc_sigmas(phi: f64, theta: f64, coeffs: &PolCoefficients) -> (c64, c64) {
         .zip(coeffs.q2_accum.iter())
         .zip(p1sin_arr.iter())
         .zip(p1_arr.iter())
-    {
-        let mf = *m as f64;
-        let nf = *n as f64;
-        let signf = *sign as f64;
+        .for_each(|((((((m, n), sign), q1), q2), p1sin), p1)| {
+            let mf = *m as f64;
+            let nf = *n as f64;
+            let signf = *sign as f64;
 
-        let c_mn = ((0.5 * (2 * n + 1) as f64) * FACTORIAL[(n - m.abs()) as usize]
-            / FACTORIAL[(n + m.abs()) as usize])
-            .sqrt();
-        let (s_m_phi, c_m_phi) = (mf * phi).sin_cos();
-        let ejm_phi = c64::new(c_m_phi, s_m_phi);
-        let phi_comp = (ejm_phi * c_mn) / (nf * (nf + 1.0)).sqrt() * signf;
-        let j_power_n = J_POWER_TABLE[(*n % 4) as usize];
-        let e_theta_mn = j_power_n * ((p1sin * (mf.abs() * q2 * u - mf * q1)) + q2 * p1);
-        let j_power_np1 = J_POWER_TABLE[((*n + 1) % 4) as usize];
-        let e_phi_mn = j_power_np1 * ((p1sin * (mf * q2 - mf.abs() * q1 * u)) - q1 * p1);
-        sigma_p += phi_comp * e_phi_mn;
-        sigma_t += phi_comp * e_theta_mn;
-    }
+            unsafe {
+                let c_mn = ((0.5 * (2 * n + 1) as f64)
+                // TODO: Is using get_unchecked going to help here?
+                * FACTORIAL[(n - m.abs()) as usize]
+                    / FACTORIAL[(n + m.abs()) as usize])
+                    .sqrt();
+                let (s_m_phi, c_m_phi) = (mf * phi).sin_cos();
+                let ejm_phi = c64::new(c_m_phi, s_m_phi);
+                let phi_comp = (ejm_phi * c_mn) / (nf * (nf + 1.0)).sqrt() * signf;
+                let j_power_n = J_POWER_TABLE.get_unchecked((*n % 4) as usize);
+                let e_theta_mn = j_power_n * ((p1sin * (mf.abs() * q2 * u - mf * q1)) + q2 * p1);
+                let j_power_np1 = J_POWER_TABLE.get_unchecked(((*n + 1) % 4) as usize);
+                let e_phi_mn = j_power_np1 * ((p1sin * (mf * q2 - mf.abs() * q1 * u)) - q1 * p1);
+                sigma_p += phi_comp * e_phi_mn;
+                sigma_t += phi_comp * e_theta_mn;
+            }
+        });
 
     // The C++ code currently doesn't distinguish between the polarisations.
     (sigma_t, -sigma_p)
@@ -650,15 +654,13 @@ fn calc_jones_direct(
 ) -> Jones<f64> {
     // Convert azimuth to FEKO phi (East through North).
     let phi_rad = FRAC_PI_2 - az_rad;
-    let (mut j00, mut j01) = calc_sigmas(phi_rad, za_rad, &coeffs.x);
-    let (mut j10, mut j11) = calc_sigmas(phi_rad, za_rad, &coeffs.y);
+    let (j00, j01) = calc_sigmas(phi_rad, za_rad, &coeffs.x);
+    let (j10, j11) = calc_sigmas(phi_rad, za_rad, &coeffs.y);
+    let mut jones = [j00, j01, j10, j11];
     if let Some(norm) = norm_matrix {
-        j00 /= norm[0];
-        j01 /= norm[1];
-        j10 /= norm[2];
-        j11 /= norm[3];
+        jones.iter_mut().zip(norm.iter()).for_each(|(j, n)| *j /= n);
     }
-    Jones::from([j00, j01, j10, j11])
+    Jones::from(jones)
 }
 
 fn calc_zenith_norm_jones(coeffs: &DipoleCoefficients) -> Jones<f64> {

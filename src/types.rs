@@ -40,14 +40,10 @@ impl CacheHash {
         let mut hasher = DefaultHasher::new();
         freq.hash(&mut hasher);
         delays.hash(&mut hasher);
-        // We can't hash f64 values, so convert the amps to ints. Multiply by a
-        // big number to get away from integer rounding.
-        let mut amps_ints: [u32; 32] = [0; 32];
-        amps_ints
-            .iter_mut()
-            .zip(amps.iter())
-            .for_each(|(amp_int, amp)| *amp_int = (amp * 1e6) as u32);
-        amps_ints.hash(&mut hasher);
+        // We can't hash f64 values, but we can hash their bits.
+        for amp in amps {
+            amp.to_bits().hash(&mut hasher);
+        }
         Self(hasher.finish())
     }
 }
