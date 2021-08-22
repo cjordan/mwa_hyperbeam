@@ -11,6 +11,7 @@ mod types;
 use std::f64::consts::{FRAC_PI_2, TAU};
 use std::sync::Mutex;
 
+use mwa_rust_core::{c64, Jones};
 use ndarray::{Array1, Array2};
 use rayon::prelude::*;
 
@@ -402,7 +403,7 @@ impl FEEBeam {
         delays: &[u32],
         amps: &[f64],
         norm_to_zenith: bool,
-    ) -> Result<Jones, FEEBeamError> {
+    ) -> Result<Jones<f64>, FEEBeamError> {
         // `delays` must have 16 elements...
         debug_assert_eq!(delays.len(), 16);
         // ... but `amps` may have either 16 or 32. 32 elements corresponds to
@@ -462,7 +463,7 @@ impl FEEBeam {
         delays: &[u32],
         amps: &[f64],
         norm_to_zenith: bool,
-    ) -> Result<Array1<Jones>, FEEBeamError> {
+    ) -> Result<Array1<Jones<f64>>, FEEBeamError> {
         // `delays` must have 16 elements...
         debug_assert_eq!(delays.len(), 16);
         // ... but `amps` may have either 16 or 32. 32 elements corresponds to
@@ -564,8 +565,8 @@ fn calc_jones_direct(
     az_rad: f64,
     za_rad: f64,
     coeffs: &DipoleCoefficients,
-    norm_matrix: Option<&Jones>,
-) -> Jones {
+    norm_matrix: Option<&Jones<f64>>,
+) -> Jones<f64> {
     // Convert azimuth to FEKO phi (East through North).
     let phi_rad = FRAC_PI_2 - az_rad;
     let (mut j00, mut j01) = calc_sigmas(phi_rad, za_rad, &coeffs.x);
@@ -576,10 +577,10 @@ fn calc_jones_direct(
         j10 /= norm[2];
         j11 /= norm[3];
     }
-    [j00, j01, j10, j11]
+    Jones::from([j00, j01, j10, j11])
 }
 
-fn calc_zenith_norm_jones(coeffs: &DipoleCoefficients) -> Jones {
+fn calc_zenith_norm_jones(coeffs: &DipoleCoefficients) -> Jones<f64> {
     // Azimuth angles at which Jones components are maximum.
     let max_phi = [0.0, -FRAC_PI_2, FRAC_PI_2, 0.0];
     let (j00, _) = calc_sigmas(max_phi[0], 0.0, &coeffs.x);
@@ -591,7 +592,7 @@ fn calc_zenith_norm_jones(coeffs: &DipoleCoefficients) -> Jones {
     // but, confusingly, the returned "Jones matrix" is all real in the C++.
     // This less ambiguous in Rust.
     let abs = |c: c64| c64::new(c.norm(), 0.0);
-    [abs(j00), abs(j01), abs(j10), abs(j11)]
+    Jones::from([abs(j00), abs(j01), abs(j10), abs(j11)])
 }
 
 #[cfg(test)]

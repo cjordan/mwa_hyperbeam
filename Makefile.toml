@@ -4,7 +4,7 @@ args = ["apt-get", "update"]
 
 [tasks.linux_install_deps]
 command = "sudo"
-args = ["apt-get", "install", "-y", "libhdf5-dev"]
+args = ["apt-get", "install", "-y", "libhdf5-dev", "liberfa-dev"]
 dependencies = ["linux_apt_get_update"]
 
 [tasks.mac_install_deps]
@@ -45,7 +45,7 @@ dependencies = ["clean"]
 
 [tasks.test]
 command = "cargo"
-args = ["test"]
+args = ["test", "--features=erfa-static"]
 
 [tasks.ci]
 dependencies = [
