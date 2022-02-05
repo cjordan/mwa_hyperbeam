@@ -92,6 +92,14 @@ required-features = ["cuda"]
 name = "fee_hip"
 required-features = ["hip"]
 
+[[example]]
+name = "analytic_cuda"
+required-features = ["cuda"]
+
+[[example]]
+name = "analytic_hip"
+required-features = ["hip"]
+
 [patch.crates-io]
 # marlu = { path = "../Marlu" }
 # marlu = { git = "https://github.com/MWATelescope/Marlu", branch = "DUT1" }
