@@ -28,7 +28,7 @@ typedef struct FEECoeffs {
     const unsigned char n_max;
 } FEECoeffs;
 
-const char *gpu_calc_jones(const FLOAT *d_azs, const FLOAT *d_zas, int num_directions, const FEECoeffs *d_coeffs,
+const char *gpu_fee_calc_jones(const FLOAT *d_azs, const FLOAT *d_zas, int num_directions, const FEECoeffs *d_coeffs,
                            int num_coeffs, const void *d_norm_jones, const FLOAT *latitude_rad, const int iau_reorder,
                            void *d_results);
 
@@ -410,7 +410,7 @@ __global__ void fee_kernel(const FEECoeffs coeffs, const FLOAT *azs, const FLOAT
     }
 }
 
-extern "C" const char *gpu_calc_jones(const FLOAT *d_azs, const FLOAT *d_zas, int num_directions,
+extern "C" const char *gpu_fee_calc_jones(const FLOAT *d_azs, const FLOAT *d_zas, int num_directions,
                                       const FEECoeffs *d_coeffs, int num_coeffs, const void *d_norm_jones,
                                       const FLOAT *latitude_rad_ptr, const int iau_order, void *d_results) {
     dim3 gridDim, blockDim;

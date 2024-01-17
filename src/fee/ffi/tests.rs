@@ -338,7 +338,7 @@ fn test_calc_jones_gpu_via_ffi() {
             num_azza,
             az.as_ptr(),
             za.as_ptr(),
-            &MWA_LAT_RAD,
+            &(MWA_LAT_RAD as GpuFloat),
             1,
             jones.as_mut_ptr().cast(),
         );

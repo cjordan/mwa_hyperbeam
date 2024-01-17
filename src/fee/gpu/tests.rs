@@ -108,8 +108,9 @@ fn test_gpu_calc_jones_w_norm() {
         })
         .unzip();
     let latitude_rad = None;
+    let latitude_rad_gpu = None;
 
-    let result = cuda_beam.calc_jones_pair(&az, &za, latitude_rad, false);
+    let result = cuda_beam.calc_jones_pair(&az, &za, latitude_rad_gpu, false);
     assert!(result.is_ok(), "{}", result.unwrap_err());
     let jones_gpu = result.unwrap();
 
@@ -180,8 +181,9 @@ fn test_gpu_calc_jones_w_norm_and_parallactic() {
         })
         .unzip();
     let latitude_rad = Some(MWA_LAT_RAD);
+    let latitude_rad_gpu = Some(MWA_LAT_RAD as GpuFloat);
 
-    let result = cuda_beam.calc_jones_pair(&az, &za, latitude_rad, true);
+    let result = cuda_beam.calc_jones_pair(&az, &za, latitude_rad_gpu, true);
     assert!(result.is_ok(), "{}", result.unwrap_err());
     let jones_gpu = result.unwrap();
 
@@ -251,7 +253,7 @@ fn test_gpu_calc_jones_with_and_without_parallactic() {
             )
         })
         .unzip();
-    let latitude_rad = Some(MWA_LAT_RAD);
+    let latitude_rad = Some(MWA_LAT_RAD as GpuFloat);
 
     let result = cuda_beam.calc_jones_pair(&az, &za, latitude_rad, false);
     assert!(result.is_ok(), "{}", result.unwrap_err());
@@ -306,8 +308,9 @@ fn test_gpu_calc_jones_deduplication() {
         })
         .unzip();
     let latitude_rad = None;
+    let latitude_rad_gpu = None;
 
-    let result = cuda_beam.calc_jones_pair(&az, &za, latitude_rad, false);
+    let result = cuda_beam.calc_jones_pair(&az, &za, latitude_rad_gpu, false);
     assert!(result.is_ok(), "{}", result.unwrap_err());
     let jones_gpu = result.unwrap();
 
@@ -396,8 +399,9 @@ fn test_gpu_calc_jones_deduplication_w_norm() {
         })
         .unzip();
     let latitude_rad = None;
+    let latitude_rad_gpu = None;
 
-    let result = cuda_beam.calc_jones_pair(&az, &za, latitude_rad, false);
+    let result = cuda_beam.calc_jones_pair(&az, &za, latitude_rad_gpu, false);
     assert!(result.is_ok(), "{}", result.unwrap_err());
     let jones_gpu = result.unwrap();
 
@@ -476,8 +480,9 @@ fn test_gpu_calc_jones_no_amps() {
         })
         .unzip();
     let latitude_rad = None;
+    let latitude_rad_gpu = None;
 
-    let result = cuda_beam.calc_jones_pair(&az, &za, latitude_rad, false);
+    let result = cuda_beam.calc_jones_pair(&az, &za, latitude_rad_gpu, false);
     assert!(result.is_ok(), "{}", result.unwrap_err());
     let jones_gpu = result.unwrap();
 
@@ -552,7 +557,7 @@ fn test_gpu_calc_jones_iau_order() {
     assert_eq!(cuda_beam.num_unique_freqs, 1);
 
     let (az, za): (Vec<_>, Vec<_>) = (vec![0.45 / 10000.0], vec![0.45 / 10000.0]);
-    let latitude_rad = Some(MWA_LAT_RAD);
+    let latitude_rad = Some(MWA_LAT_RAD as GpuFloat);
 
     let result = cuda_beam.calc_jones_pair(&az, &za, latitude_rad, true);
     assert!(result.is_ok(), "{}", result.unwrap_err());
@@ -607,7 +612,7 @@ fn test_no_directions_doesnt_fail() {
     let cuda_beam =
         unsafe { beam.gpu_prepare(&freqs, delays.view(), amps.view(), norm_to_zenith) }.unwrap();
 
-    let latitude_rad = Some(MWA_LAT_RAD);
+    let latitude_rad = Some(MWA_LAT_RAD as GpuFloat);
     let result = cuda_beam
         .calc_jones_pair(&[], &[], latitude_rad, false)
         .unwrap();
