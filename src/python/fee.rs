@@ -13,7 +13,7 @@ use pyo3::prelude::*;
 
 use crate::fee::FEEBeam as FEEBeamRust;
 #[cfg(any(feature = "cuda", feature = "hip"))]
-use crate::GpuComplex;
+use crate::{GpuComplex, GpuFloat};
 
 /// A Python class interfacing with the hyperbeam FEE beam code written in Rust.
 #[pyclass]
@@ -184,7 +184,7 @@ impl FEEBeam {
         delays_array: Vec<u32>,
         amps_array: Vec<f64>,
         norm_to_zenith: bool,
-        latitude_rad: Option<f64>,
+        latitude_rad: Option<GpuFloat>,
         iau_order: Option<bool>,
     ) -> PyResult<&'py PyArray4<GpuComplex>> {
         // hyperbeam expects ints for the frequencies. Convert them to make sure

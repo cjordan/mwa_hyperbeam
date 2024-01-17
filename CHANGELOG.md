@@ -6,6 +6,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic
 Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] - unreleased
+### Fixed
+- A strange race condition in the FEE GPU code.
+  - This only seems to be apparent when multiple GPU tests were run
+    simultaneously, and it seems to be related to how the pointer to a latitude
+    was passed in. The relevant code is now simpler, and along with the change
+    below, testing suggests that the race is now gone.
+
+### Changed
+- GPU functions now require the `latitude_rad` float type to match how
+  `hyperbeam` was compiled, i.e. `f64` for `cuda` or `hip`, but `f32` if
+  `gpu-single` was used.
+
 ## [0.7.0] - 2023-10-31
 ### Added
 - Expose Rust function `fix_amps_ndarray`

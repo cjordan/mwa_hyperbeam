@@ -88,7 +88,7 @@ int main(int argc, char *argv[]) {
     // Number of specified amps per tile.
     int num_amps = 16;
     // MWA latitude
-    double latitude_rad = -0.4660608448386394;
+    FLOAT latitude_rad = -0.4660608448386394;
     // Should we normalise the beam response?
     int norm_to_zenith = 1;
 

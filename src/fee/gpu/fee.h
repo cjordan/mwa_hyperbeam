@@ -29,7 +29,7 @@ typedef struct FEECoeffs {
 } FEECoeffs;
 
 const char *gpu_calc_jones(const FLOAT *d_azs, const FLOAT *d_zas, int num_directions, const FEECoeffs *d_coeffs,
-                           int num_coeffs, const void *d_norm_jones, const FLOAT *d_latitude_rad, const int iau_reorder,
+                           int num_coeffs, const void *d_norm_jones, const FLOAT *latitude_rad, const int iau_reorder,
                            void *d_results);
 
 #ifdef __cplusplus
@@ -366,7 +366,7 @@ inline __device__ void jones_calc_sigmas_device(const FLOAT phi, const FLOAT the
  * blockIdx.x * blockDim.x + threadIdx.x corresponds to direction.
  */
 __global__ void fee_kernel(const FEECoeffs coeffs, const FLOAT *azs, const FLOAT *zas, const int num_directions,
-                           const JONES *norm_jones, const FLOAT *latitude_rad, const int iau_order, JONES *fee_jones) {
+                           const JONES *norm_jones, const FLOAT latitude_rad, const int iau_order, JONES *fee_jones) {
     for (int i_direction = blockIdx.x * blockDim.x + threadIdx.x; i_direction < num_directions;
          i_direction += gridDim.x * blockDim.x) {
         const FLOAT az = azs[i_direction];
@@ -398,9 +398,10 @@ __global__ void fee_kernel(const FEECoeffs coeffs, const FLOAT *azs, const FLOAT
             jm.j11 = CDIV(jm.j11, norm.j11);
         }
 
-        if (latitude_rad != NULL) {
-            HADec hadec = azel_to_hadec(az, M_PI_2 - za, *latitude_rad);
-            FLOAT pa = get_parallactic_angle(hadec, *latitude_rad);
+        // Only proceed if the latitude isn't NaN.
+        if (!isnan(latitude_rad)) {
+            HADec hadec = azel_to_hadec(az, M_PI_2 - za, latitude_rad);
+            FLOAT pa = get_parallactic_angle(hadec, latitude_rad);
             apply_pa_correction(&jm, pa, iau_order);
         }
 
@@ -411,12 +412,19 @@ __global__ void fee_kernel(const FEECoeffs coeffs, const FLOAT *azs, const FLOAT
 
 extern "C" const char *gpu_calc_jones(const FLOAT *d_azs, const FLOAT *d_zas, int num_directions,
                                       const FEECoeffs *d_coeffs, int num_coeffs, const void *d_norm_jones,
-                                      const FLOAT *d_latitude_rad, const int iau_order, void *d_results) {
+                                      const FLOAT *latitude_rad_ptr, const int iau_order, void *d_results) {
     dim3 gridDim, blockDim;
     blockDim.x = warpSize;
     gridDim.x = (int)ceil((double)num_directions / (double)blockDim.x);
     gridDim.y = num_coeffs;
-    fee_kernel<<<gridDim, blockDim>>>(*d_coeffs, d_azs, d_zas, num_directions, (JONES *)d_norm_jones, d_latitude_rad,
+
+    // Weird but necessary.
+    FLOAT latitude_rad = NAN;
+    if (latitude_rad_ptr != NULL) {
+        latitude_rad = *latitude_rad_ptr;
+    }
+
+    fee_kernel<<<gridDim, blockDim>>>(*d_coeffs, d_azs, d_zas, num_directions, (JONES *)d_norm_jones, latitude_rad,
                                       iau_order, (JONES *)d_results);
 
     gpuError_t error_id;

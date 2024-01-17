@@ -511,7 +511,7 @@ pub unsafe extern "C" fn fee_calc_jones_gpu(
     num_azza: u32,
     az_rad: *const GpuFloat,
     za_rad: *const GpuFloat,
-    latitude_rad: *const f64,
+    latitude_rad: *const GpuFloat,
     iau_order: u8,
     jones: *mut GpuFloat,
 ) -> i32 {
@@ -581,7 +581,7 @@ pub unsafe extern "C" fn fee_calc_jones_gpu_device(
     num_azza: i32,
     az_rad: *const GpuFloat,
     za_rad: *const GpuFloat,
-    latitude_rad: *const f64,
+    latitude_rad: *const GpuFloat,
     iau_order: u8,
     d_jones: *mut GpuFloat,
 ) -> i32 {
@@ -599,15 +599,11 @@ pub unsafe extern "C" fn fee_calc_jones_gpu_device(
     let za = slice::from_raw_parts(za_rad, num_azza as usize);
     let d_az = ffi_error!(DevicePointer::copy_to_device(az));
     let d_za = ffi_error!(DevicePointer::copy_to_device(za));
-    let d_latitude_rad = ffi_error!(latitude_rad
-        .as_ref()
-        .map(|f| DevicePointer::copy_to_device(&[*f as GpuFloat]))
-        .transpose());
     ffi_error!(beam.calc_jones_device_pair_inner(
         d_az.get(),
         d_za.get(),
         num_azza,
-        d_latitude_rad.map(|p| p.get()).unwrap_or(std::ptr::null()),
+        latitude_rad,
         iau_bool,
         d_jones.cast()
     ));
@@ -652,7 +648,7 @@ pub unsafe extern "C" fn fee_calc_jones_gpu_device_inner(
     num_azza: i32,
     d_az_rad: *const GpuFloat,
     d_za_rad: *const GpuFloat,
-    d_latitude_rad: *const GpuFloat,
+    latitude_rad: *const GpuFloat,
     iau_order: u8,
     d_jones: *mut GpuFloat,
 ) -> i32 {
@@ -666,11 +662,12 @@ pub unsafe extern "C" fn fee_calc_jones_gpu_device_inner(
     };
 
     let beam = &*gpu_fee_beam;
+
     ffi_error!(beam.calc_jones_device_pair_inner(
         d_az_rad,
         d_za_rad,
         num_azza,
-        d_latitude_rad,
+        latitude_rad,
         iau_bool,
         d_jones.cast()
     ));

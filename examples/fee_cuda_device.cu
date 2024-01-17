@@ -171,7 +171,7 @@ int main(int argc, char *argv[]) {
     // Should we apply the parallactic angle correction? If so, use this
     // latitude for the MWA. Read more here:
     // https://github.com/MWATelescope/mwa_hyperbeam/blob/main/fee_pols.pdf
-    double latitude_rad = -0.4660608448386394;
+    FLOAT latitude_rad = -0.4660608448386394;
 
     // Allocate our device memory for the beam responses.
     JONES *d_jones;

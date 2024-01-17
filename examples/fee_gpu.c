@@ -107,7 +107,7 @@ int main(int argc, char *argv[]) {
     // Should we apply the parallactic angle correction? If so, use this
     // latitude for the MWA. Read more here:
     // https://github.com/MWATelescope/mwa_hyperbeam/blob/main/fee_pols.pdf
-    double latitude_rad = -0.4660608448386394;
+    FLOAT latitude_rad = -0.4660608448386394;
 
     // Allocate a buffer for the results.
     size_t num_unique_tiles = (size_t)get_num_unique_fee_tiles(gpu_beam);

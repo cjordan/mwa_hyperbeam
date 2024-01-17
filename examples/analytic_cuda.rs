@@ -61,8 +61,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // Call hyperbeam GPU code.
-    let latitude_rad = -0.4660608448386394; // MWA
-    let jones = gpu_beam.calc_jones(&azels, &freqs_hz, latitude_rad, norm_to_zenith)?;
+    let latitude_rad: f64 = -0.4660608448386394; // MWA
+    let jones = gpu_beam.calc_jones(&azels, &freqs_hz, latitude_rad as GpuFloat, norm_to_zenith)?;
     println!("The first Jones matrix:");
     // This works, but the formatting for this isn't very pretty.
     // println!("{}", jones[(0, 0, 0)]);

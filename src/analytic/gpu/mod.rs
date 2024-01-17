@@ -145,7 +145,7 @@ impl AnalyticBeamGpu {
         &self,
         azels: &[AzEl],
         freqs_hz: &[u32],
-        latitude_rad: f64,
+        latitude_rad: GpuFloat,
         norm_to_zenith: bool,
     ) -> Result<DevicePointer<Jones<GpuFloat>>, AnalyticBeamError> {
         unsafe {
@@ -172,7 +172,7 @@ impl AnalyticBeamGpu {
                 azels.len().try_into().expect("much fewer than i32::MAX"),
                 d_freqs.get(),
                 freqs_hz.len().try_into().expect("much fewer than i32::MAX"),
-                latitude_rad as GpuFloat,
+                latitude_rad,
                 norm_to_zenith,
                 d_results.get_mut() as *mut std::ffi::c_void,
             )?;
@@ -298,7 +298,7 @@ impl AnalyticBeamGpu {
         &self,
         azels: &[AzEl],
         freqs_hz: &[u32],
-        latitude_rad: f64,
+        latitude_rad: GpuFloat,
         norm_to_zenith: bool,
     ) -> Result<Array3<Jones<GpuFloat>>, AnalyticBeamError> {
         let mut results = Array3::from_elem(
@@ -314,7 +314,7 @@ impl AnalyticBeamGpu {
             &azs,
             &zas,
             freqs_hz,
-            latitude_rad as GpuFloat,
+            latitude_rad,
             norm_to_zenith,
             results.view_mut(),
         )?;

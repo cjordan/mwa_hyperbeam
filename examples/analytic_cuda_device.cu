@@ -113,7 +113,8 @@ int main(int argc, char *argv[]) {
     AnalyticBeam *beam;
     char rts_style = 1;                  // 1 or RTS style, 0 for mwa_pb
     double *dipole_height_metres = NULL; // Point to a valid float if you want a custom height
-    if (new_analytic_beam(rts_style, dipole_height_metres, &beam))
+    const uint8_t *bowties_per_row = NULL; // Point to a valid int if you want to customise this
+    if (new_analytic_beam(rts_style, dipole_height_metres, bowties_per_row, &beam))
         handle_hyperbeam_error(__FILE__, __LINE__, "new_analytic_beam");
 
     // Set up our telescope array. Here, we are using three tiles, but there are
@@ -156,7 +157,7 @@ int main(int argc, char *argv[]) {
         za[i] = (10.0 + i * 70.0 / num_directions) * M_PI / 180.0;
     }
     // MWA latitude
-    double latitude_rad = -0.4660608448386394;
+    FLOAT latitude_rad = -0.4660608448386394;
 
     // Allocate our device memory for the beam responses.
     JONES *d_jones;
